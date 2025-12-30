@@ -62,6 +62,7 @@ impl TryFrom<CompletionResponse> for completion::CompletionResponse<CompletionRe
                 content,
                 tool_calls,
                 reasoning,
+                reasoning_content,
                 ..
             } => {
                 let mut content = content
@@ -91,6 +92,10 @@ impl TryFrom<CompletionResponse> for completion::CompletionResponse<CompletionRe
 
                 if let Some(reasoning) = reasoning {
                     content.push(completion::AssistantContent::reasoning(reasoning));
+                }
+
+                if let Some(reasoning_content) = reasoning_content {
+                    content.push(completion::AssistantContent::reasoning(reasoning_content));
                 }
 
                 Ok(content)
@@ -169,6 +174,8 @@ pub enum Message {
         tool_calls: Vec<openai::ToolCall>,
         #[serde(skip_serializing_if = "Option::is_none")]
         reasoning: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        reasoning_content: Option<String>,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         reasoning_details: Vec<ReasoningDetails>,
     },
@@ -243,6 +250,7 @@ impl From<openai::Message> for Message {
                 name,
                 tool_calls,
                 reasoning: None,
+                reasoning_content: None,
                 reasoning_details: Vec::new(),
             },
             openai::Message::ToolResult {
@@ -331,6 +339,7 @@ impl TryFrom<OneOrMany<message::AssistantContent>> for Vec<Message> {
             name: None,
             tool_calls,
             reasoning,
+            reasoning_content: None,
             reasoning_details,
         }])
     }

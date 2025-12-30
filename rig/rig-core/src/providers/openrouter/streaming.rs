@@ -93,6 +93,7 @@ struct StreamingDelta {
     #[serde(default, deserialize_with = "json_utils::null_or_vec")]
     pub tool_calls: Vec<StreamingToolCall>,
     pub reasoning: Option<String>,
+    pub reasoning_content: Option<String>,
     #[serde(default, deserialize_with = "json_utils::null_or_vec")]
     pub reasoning_details: Vec<ReasoningDetails>,
 }
@@ -264,11 +265,22 @@ where
                     }
 
                     // Streamed reasoning content
-                    if let Some(reasoning) = &delta.reasoning && !reasoning.is_empty() {
-                        yield Ok(streaming::RawStreamingChoice::ReasoningDelta {
-                            reasoning: reasoning.clone(),
-                            id: None,
-                        });
+                    if let Some(reasoning) = &delta.reasoning {
+                        if !reasoning.is_empty() {
+                            yield Ok(streaming::RawStreamingChoice::ReasoningDelta {
+                                reasoning: reasoning.clone(),
+                                id: None,
+                            });
+                        }
+                    }
+
+                    if let Some(reasoning) = &delta.reasoning_content {
+                        if !reasoning.is_empty() {
+                            yield Ok(streaming::RawStreamingChoice::ReasoningDelta {
+                                reasoning: reasoning.clone(),
+                                id: None,
+                            });
+                        }
                     }
 
                     // Streamed text content

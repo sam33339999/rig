@@ -466,12 +466,19 @@ pub async fn stream_to_stdout<R>(
     stream: &mut StreamingResult<R>,
 ) -> Result<FinalResponse, std::io::Error> {
     let mut final_res = FinalResponse::empty();
+    let mut is_reasoning = false; // 新增狀態標記
+
     print!("Response: ");
     while let Some(content) = stream.next().await {
         match content {
             Ok(MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(
                 Text { text },
             ))) => {
+                // 如果剛結束思考，補一個標籤與換行
+                if is_reasoning {
+                    print!("\n</think>\n\n");
+                    is_reasoning = false;
+                }
                 print!("{text}");
                 std::io::Write::flush(&mut std::io::stdout()).unwrap();
             }
@@ -479,6 +486,18 @@ pub async fn stream_to_stdout<R>(
                 Reasoning { reasoning, .. },
             ))) => {
                 let reasoning = reasoning.join("\n");
+                println!("\n<think>\n{reasoning}\n</think>\n");
+                std::io::Write::flush(&mut std::io::stdout()).unwrap();
+            }
+            // 新增這個分支來處理流式思考
+            Ok(MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::ReasoningDelta {
+                reasoning,
+                ..
+            })) => {
+                if !is_reasoning {
+                    print!("\n<think>\n");
+                    is_reasoning = true;
+                }
                 print!("{reasoning}");
                 std::io::Write::flush(&mut std::io::stdout()).unwrap();
             }
@@ -486,10 +505,18 @@ pub async fn stream_to_stdout<R>(
                 final_res = res;
             }
             Err(err) => {
+                if is_reasoning {
+                    print!("\n</think>\n");
+                }
                 eprintln!("Error: {err}");
             }
             _ => {}
         }
+    }
+
+    // 若最後仍處於思考狀態則強制關閉
+    if is_reasoning {
+        print!("\n</think>\n\n");
     }
 
     Ok(final_res)
